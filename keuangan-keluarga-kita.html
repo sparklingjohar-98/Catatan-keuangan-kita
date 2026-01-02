@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pengeluaran Keluarga</title>
+
+<!-- Meta untuk Home Screen (iOS & Android) -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0ea5e9">
+
+<!-- Icon untuk Home Screen (gunakan emoji atau icon PNG legal) -->
+<link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABF0lEQVQ4jWNgoBaQYYNQp2ZkYGRgYKMGjo6OBk4uLi4/f7/+/fuH8XGRpZGBgYGhgeL///1/t///f7//z8z//79+//9c3NzP///+//n7//v9BZE7X39/f/+/8nJydHB0dP8DxMzExYWRkYmBiYGBwYGBc//v3Z2dkZGRkUoPIkZGRjo6OeHR0dF5eXn///+Xn5+f6+vr/+Pj4+PBwMDU1dX//v/+/f39f//f2Dg4OHg4PDw8QGhkZGRk4nI5IZU0mMnJycsLMxMbGxMLCwsDAwMBgaGkR6U1XTxMTAwMjA0sTIysnHx8bHxycxMDAwMDAwMiIinZuBgYGRgYGhkYGBgbt3d3eFgcCzExMSgcHCwMS8nLywsHBycnJw8PDz8DBz8/Pz88PFwCBX4j8o2h+7IAAAAASUVORK5CYII=">
+
+<style>
+body{font-family:Arial, sans-serif;min-height:100vh;padding:20px;background:linear-gradient(135deg,#0ea5e9,#1e3a8a);}
+.box{max-width:420px;margin:auto;background:#ffffffee;padding:16px;border-radius:18px;box-shadow:0 10px 25px rgba(0,0,0,.3);text-align:center;}
+input,select,button{width:100%;padding:10px;margin-top:8px;border-radius:10px;border:1px solid #ddd;}
+button{background:#111827;color:#fff;font-weight:bold;}
+.item{background:#f9fafb;border-left:6px solid #2563eb;padding:10px;margin-top:10px;border-radius:12px;text-align:left;}
+.actions{display:flex;gap:8px;margin-top:6px;}
+.actions button{flex:1;font-size:13px;padding:6px;}
+.btn-edit{background:#facc15;color:#000;}
+.btn-hapus{background:#dc2626;color:#fff;}
+.karakter{font-size:60px;margin-bottom:6px;}
+.rekap-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;font-size:12px;margin-top:6px;}
+.rekap-cell{background:#f3f4f6;padding:4px;border-radius:6px;}
+</style>
+</head>
+<body>
+
+<div class="box">
+  <div class="karakter">💵💰📑</div>
+  <h2>Pengeluaran Keluarga</h2>
+  <p style="font-size:13px;color:#555">Catatan sederhana & aman</p>
+
+  <select id="user">
+    <option>👩 Istri</option>
+    <option>👨 Suami</option>
+  </select>
+
+  <input type="date" id="tgl">
+  <input type="text" id="ket" placeholder="Keterangan">
+  <input type="number" id="jml" placeholder="Jumlah (Rp)">
+  <button onclick="tambah()">Tambah</button>
+
+  <hr style="margin:12px 0">
+
+  <input type="date" id="filter" onchange="render()">
+
+  <h3>Total: <span id="total">Rp 0</span></h3>
+  <p id="bulanan" style="font-size:13px"></p>
+  <h4>Rekap Harian Bulan Ini:</h4>
+  <div id="rekap-harian" class="rekap-grid"></div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+const KEY="pengeluaran_keluarga";
+let data=JSON.parse(localStorage.getItem(KEY))||[];
+let editIndex=null;
+
+function simpan(){localStorage.setItem(KEY,JSON.stringify(data));}
+
+function tambah(){
+  const t=tgl.value,k=ket.value,j=Number(jml.value),u=user.value;
+  if(!t||!k||!j) return alert("Lengkapi data");
+  if(editIndex!==null){data[editIndex]={t,k,j,u};editIndex=null;} else data.push({t,k,j,u});
+  simpan(); tgl.value=ket.value=jml.value=""; render();
+}
+
+function render(){
+  let list=document.getElementById("list"),total=0,bulanTotal={},rekapHarian={};
+  list.innerHTML=""; const f=filter.value;
+
+  data.forEach((d,i)=>{
+    if(f && d.t!==f) return;
+    total+=d.j;
+    const bln=d.t.slice(0,7);
+    bulanTotal[bln]=(bulanTotal[bln]||0)+d.j;
+    rekapHarian[d.t]=(rekapHarian[d.t]||0)+d.j;
+
+    list.innerHTML+=`<div class="item"><b>${d.k}</b> (${d.u})<br><span style="font-size:12px">${d.t}</span><br>Rp ${d.j.toLocaleString('id-ID')}<div class="actions"><button class="btn-edit" onclick="edit(${i})">✏️ Edit</button><button class="btn-hapus" onclick="hapus(${i})">🗑️ Hapus</button></div></div>`;
+  });
+
+  total.innerText="Rp "+total.toLocaleString('id-ID');
+  bulanan.innerText=Object.entries(bulanTotal).map(b=>`📅 ${b[0]}: Rp ${b[1].toLocaleString('id-ID')}`).join(" | ");
+
+  // Rekap harian bulan berjalan dalam grid
+  let rekapDiv=document.getElementById("rekap-harian");
+  rekapDiv.innerHTML="";
+  const now=new Date(); const yyyy=now.getFullYear(); const mm=('0'+(now.getMonth()+1)).slice(-2);
+  const daysInMonth=new Date(yyyy,now.getMonth()+1,0).getDate();
+  for(let d=1;d<=daysInMonth;d++){
+    const day=('0'+d).slice(-2); const dateStr=`${yyyy}-${mm}-${day}`;
+    const val=rekapHarian[dateStr]||0;
+    rekapDiv.innerHTML+=`<div class="rekap-cell">${day}-${mm}<br>Rp ${val.toLocaleString('id-ID')}</div>`;
+  }
+}
+
+function edit(i){const d=data[i];tgl.value=d.t; ket.value=d.k; jml.value=d.j; user.value=d.u; editIndex=i;}
+function hapus(i){if(confirm("Hapus data ini?")){data.splice(i,1); simpan(); render();}}
+
+render();
+</script>
+</body>
+</html>
